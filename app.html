@@ -1,0 +1,613 @@
+```html
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Reflex Pro - Boxing Combo Generator</title>
+    
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        zinc: {
+                            950: '#09090b',
+                            900: '#18181b',
+                            800: '#27272a',
+                            700: '#3f3f46'
+                        },
+                        neon: {
+                            yellow: '#facc15',
+                            lime: '#a3e635',
+                            red: '#ef4444',
+                            cyan: '#06b6d4',
+                            purple: '#c084fc'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace']
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body {
+            background-color: #09090b;
+            color: #f4f4f5;
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
+        }
+
+        /* High visual impact card pulse when auto-timer ticks */
+        @keyframes pulse-ring {
+            0% { transform: scale(0.98); opacity: 0.8; }
+            50% { transform: scale(1.02); opacity: 1; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        .combo-flash {
+            animation: pulse-ring 0.25s ease-out;
+        }
+
+        /* Giant Glove Touch Button Pressed Effect */
+        .glove-btn:active {
+            transform: translateY(4px) scale(0.98);
+        }
+
+        /* Custom scrollbar for horizontal combo list */
+        ::-webkit-scrollbar {
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #18181b;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #3f3f46;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between p-3 sm:p-6 max-w-4xl mx-auto font-sans antialiased">
+
+    <!-- TOP HEADER / QUICK CONTROLS -->
+    <header class="w-full flex items-center justify-between pb-4 border-b border-zinc-800">
+        <div class="flex items-center gap-2">
+            <div class="p-2 bg-yellow-400 text-zinc-950 rounded-xl font-black text-xl tracking-wider shadow-lg flex items-center gap-1">
+                <i data-lucide="zap" class="w-6 h-6 fill-zinc-950"></i>
+                REFLEX<span class="text-zinc-800 font-light text-xs bg-yellow-500/40 px-1.5 py-0.5 rounded">PRO</span>
+            </div>
+        </div>
+
+        <div class="flex items-center gap-2">
+            <!-- Audio Voice Toggle -->
+            <button id="ttsToggle" onclick="toggleTTS()" title="Toggle Voice Callouts"
+                class="p-3 bg-zinc-900 border border-zinc-700 rounded-xl text-zinc-400 hover:text-yellow-400 transition flex items-center justify-center min-w-[48px] min-h-[48px]">
+                <i id="ttsIcon" data-lucide="volume-x" class="w-6 h-6"></i>
+            </button>
+
+            <!-- Audio Beep Toggle -->
+            <button id="beepToggle" onclick="toggleBeep()" title="Toggle Beep Sound"
+                class="p-3 bg-zinc-900 border border-zinc-700 rounded-xl text-zinc-400 hover:text-yellow-400 transition flex items-center justify-center min-w-[48px] min-h-[48px]">
+                <i id="beepIcon" data-lucide="bell-off" class="w-6 h-6"></i>
+            </button>
+
+            <!-- Custom Combo Modal Trigger -->
+            <button onclick="openCustomModal()" title="Manage Custom Combos"
+                class="p-3 bg-zinc-900 border border-zinc-700 rounded-xl text-zinc-400 hover:text-yellow-400 transition flex items-center justify-center min-w-[48px] min-h-[48px]">
+                <i data-lucide="settings" class="w-6 h-6"></i>
+            </button>
+        </div>
+    </header>
+
+    <!-- NAVIGATION TABS -->
+    <div class="grid grid-cols-2 gap-2 my-4">
+        <button id="tab10Move" onclick="setMode('10move')"
+            class="py-3 px-4 rounded-xl font-bold text-sm sm:text-base tracking-wide border transition flex items-center justify-center gap-2 border-yellow-400 bg-yellow-400/10 text-yellow-400">
+            <i data-lucide="shuffle" class="w-5 h-5"></i>
+            10-MOVE RANDOM
+        </button>
+        <button id="tabPreset" onclick="setMode('preset')"
+            class="py-3 px-4 rounded-xl font-bold text-sm sm:text-base tracking-wide border transition flex items-center justify-center gap-2 border-zinc-800 bg-zinc-900 text-zinc-400 hover:text-zinc-200">
+            <i data-lucide="list-checks" class="w-5 h-5"></i>
+            PRESETS & CUSTOMS
+        </button>
+    </div>
+
+    <!-- MAIN DISPLAY AREA -->
+    <main class="flex-1 flex flex-col justify-center my-2 gap-4">
+
+        <!-- TIMER BAR CONTROLS -->
+        <div class="bg-zinc-900/90 border border-zinc-800 rounded-2xl p-4 flex flex-col gap-3 shadow-2xl">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <i data-lucide="timer" class="w-5 h-5 text-yellow-400"></i>
+                    <span class="text-xs sm:text-sm font-bold uppercase tracking-wider text-zinc-400">Hands-Free Auto Refresh</span>
+                </div>
+                <div class="flex items-center gap-1.5" id="intervalOptions">
+                    <button onclick="setIntervalTime(0)" class="interval-btn px-2.5 py-1 rounded-lg text-xs font-bold border border-yellow-400 bg-yellow-400 text-zinc-950" data-time="0">OFF</button>
+                    <button onclick="setIntervalTime(10)" class="interval-btn px-2.5 py-1 rounded-lg text-xs font-bold border border-zinc-800 bg-zinc-950 text-zinc-400" data-time="10">10s</button>
+                    <button onclick="setIntervalTime(15)" class="interval-btn px-2.5 py-1 rounded-lg text-xs font-bold border border-zinc-800 bg-zinc-950 text-zinc-400" data-time="15">15s</button>
+                    <button onclick="setIntervalTime(30)" class="interval-btn px-2.5 py-1 rounded-lg text-xs font-bold border border-zinc-800 bg-zinc-950 text-zinc-400" data-time="30">30s</button>
+                    <button onclick="setIntervalTime(60)" class="interval-btn px-2.5 py-1 rounded-lg text-xs font-bold border border-zinc-800 bg-zinc-950 text-zinc-400" data-time="60">60s</button>
+                </div>
+            </div>
+
+            <!-- Visual Interval Progress Bar -->
+            <div class="w-full bg-zinc-950 h-3 rounded-full overflow-hidden border border-zinc-800 p-0.5 relative">
+                <div id="progressBar" class="bg-yellow-400 h-full rounded-full transition-all duration-100 w-0"></div>
+            </div>
+        </div>
+
+        <!-- PRESET SELECTOR (Visible only in Preset Mode) -->
+        <div id="presetSelectorContainer" class="hidden bg-zinc-900 border border-zinc-800 rounded-2xl p-3">
+            <label class="block text-xs font-bold text-zinc-400 uppercase tracking-wider mb-2">Select Combo Drill</label>
+            <select id="presetSelect" onchange="loadSelectedPreset()"
+                class="w-full bg-zinc-950 border border-zinc-700 text-yellow-400 text-lg font-bold py-3 px-4 rounded-xl focus:outline-none focus:border-yellow-400">
+                <!-- Dynamically populated -->
+            </select>
+        </div>
+
+        <!-- COMBO DISPLAY CONTAINER -->
+        <div id="comboContainer" class="bg-zinc-950 border-2 border-zinc-800 rounded-3xl p-4 sm:p-6 flex flex-col justify-center min-h-[320px] shadow-2xl relative overflow-hidden">
+            
+            <!-- Step Counter & Title -->
+            <div class="flex justify-between items-center mb-4">
+                <span id="comboTitle" class="text-xs sm:text-sm font-black uppercase tracking-widest text-zinc-500">10-MOVE REFLEX DRILL</span>
+                <span id="comboLengthBadge" class="text-xs font-bold bg-zinc-800 text-yellow-400 px-3 py-1 rounded-full border border-zinc-700">10 MOVES</span>
+            </div>
+
+            <!-- Move Cards Grid (10 Moves View) -->
+            <div id="moveGrid" class="grid grid-cols-2 sm:grid-cols-5 gap-2.5 sm:gap-3">
+                <!-- Javascript will generate 10 high contrast cards here -->
+            </div>
+        </div>
+
+    </main>
+
+    <!-- FOOTER CONTROLS: MASSIVE GLOVE-FRIENDLY BUTTON -->
+    <footer class="w-full pt-2 pb-2">
+        <button id="generateBtn" onclick="generateNewCombo()"
+            class="glove-btn w-full bg-gradient-to-r from-yellow-400 via-amber-400 to-yellow-500 hover:from-yellow-300 hover:to-amber-400 text-zinc-950 font-black text-2xl sm:text-4xl py-6 sm:py-8 px-6 rounded-3xl shadow-[0_10px_30px_rgba(250,204,21,0.3)] transition-all flex items-center justify-center gap-3 border-4 border-yellow-300 active:bg-yellow-500">
+            <i data-lucide="zap" class="w-8 h-8 sm:w-10 sm:h-10 fill-zinc-950"></i>
+            <span>NEW COMBO</span>
+        </button>
+    </footer>
+
+    <!-- CUSTOM COMBOS MODAL -->
+    <div id="customModal" class="fixed inset-0 bg-black/80 backdrop-blur-md hidden z-50 items-center justify-center p-4">
+        <div class="bg-zinc-900 border border-zinc-700 rounded-3xl p-6 w-full max-w-lg shadow-2xl flex flex-col gap-4 max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-center border-b border-zinc-800 pb-3">
+                <h3 class="text-xl font-black text-yellow-400 uppercase tracking-wider flex items-center gap-2">
+                    <i data-lucide="plus-circle" class="w-6 h-6"></i>
+                    Add Custom Drill
+                </h3>
+                <button onclick="closeCustomModal()" class="text-zinc-400 hover:text-white p-2">
+                    <i data-lucide="x" class="w-6 h-6"></i>
+                </button>
+            </div>
+
+            <!-- New Combo Form -->
+            <div class="flex flex-col gap-3">
+                <div>
+                    <label class="text-xs font-bold text-zinc-400 uppercase">Combo Title</label>
+                    <input type="text" id="customTitleInput" placeholder="e.g. Mike Tyson Peek-a-Boo 4"
+                        class="w-full bg-zinc-950 border border-zinc-700 rounded-xl p-3 text-white focus:outline-none focus:border-yellow-400 mt-1">
+                </div>
+                <div>
+                    <label class="text-xs font-bold text-zinc-400 uppercase">Moves (Comma Separated)</label>
+                    <input type="text" id="customMovesInput" placeholder="e.g. Jab, Cross, Slip Right, Cross, Lead Hook"
+                        class="w-full bg-zinc-950 border border-zinc-700 rounded-xl p-3 text-white focus:outline-none focus:border-yellow-400 mt-1">
+                    <p class="text-xs text-zinc-500 mt-1">Available moves: Jab, Cross, Lead Hook, Rear Hook, Lead Uppercut, Rear Uppercut, Slip Left, Slip Right, Duck, Roll</p>
+                </div>
+                <button onclick="saveCustomCombo()"
+                    class="w-full bg-yellow-400 text-zinc-950 font-bold py-3 rounded-xl hover:bg-yellow-300 transition mt-2">
+                    SAVE CUSTOM COMBO
+                </button>
+            </div>
+
+            <!-- Saved Customs List -->
+            <div class="border-t border-zinc-800 pt-4 mt-2">
+                <h4 class="text-sm font-bold text-zinc-300 uppercase mb-3">Your Saved Customs</h4>
+                <div id="savedCustomsList" class="flex flex-col gap-2 max-h-48 overflow-y-auto">
+                    <!-- Populated by JS -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // MOVES DATA BANK
+        const MOVES_DB = [
+            { id: 'jab', name: 'JAB', abbr: '1', type: 'offense', badgeBg: 'bg-cyan-500/20', badgeBorder: 'border-cyan-500', textColor: 'text-cyan-300' },
+            { id: 'cross', name: 'CROSS', abbr: '2', type: 'offense', badgeBg: 'bg-red-500/20', badgeBorder: 'border-red-500', textColor: 'text-red-400' },
+            { id: 'lead_hook', name: 'LEAD HOOK', abbr: '3', type: 'offense', badgeBg: 'bg-amber-500/20', badgeBorder: 'border-amber-500', textColor: 'text-amber-300' },
+            { id: 'rear_hook', name: 'REAR HOOK', abbr: '4', type: 'offense', badgeBg: 'bg-orange-500/20', badgeBorder: 'border-orange-500', textColor: 'text-orange-400' },
+            { id: 'lead_upper', name: 'LEAD UPPER', abbr: '5', type: 'offense', badgeBg: 'bg-emerald-500/20', badgeBorder: 'border-emerald-500', textColor: 'text-emerald-300' },
+            { id: 'rear_upper', name: 'REAR UPPER', abbr: '6', type: 'offense', badgeBg: 'bg-purple-500/20', badgeBorder: 'border-purple-500', textColor: 'text-purple-300' },
+            { id: 'slip_l', name: 'SLIP LEFT', abbr: 'SL', type: 'defense', badgeBg: 'bg-blue-500/20', badgeBorder: 'border-blue-500', textColor: 'text-blue-300' },
+            { id: 'slip_r', name: 'SLIP RIGHT', abbr: 'SR', type: 'defense', badgeBg: 'bg-indigo-500/20', badgeBorder: 'border-indigo-500', textColor: 'text-indigo-300' },
+            { id: 'duck', name: 'DUCK', abbr: 'DCK', type: 'defense', badgeBg: 'bg-pink-500/20', badgeBorder: 'border-pink-500', textColor: 'text-pink-300' },
+            { id: 'roll', name: 'ROLL', abbr: 'RLL', type: 'defense', badgeBg: 'bg-lime-500/20', badgeBorder: 'border-lime-500', textColor: 'text-lime-300' }
+        ];
+
+        // DEFAULT PRESET COMBOS
+        const DEFAULT_PRESETS = [
+            { name: '1-2 Basic Jab-Cross', moves: ['JAB', 'CROSS'] },
+            { name: '1-2-3 Classic Combination', moves: ['JAB', 'CROSS', 'LEAD HOOK'] },
+            { name: '1-2-Slip-2 Counter', moves: ['JAB', 'CROSS', 'SLIP RIGHT', 'CROSS'] },
+            { name: '1-2-3-Roll-2 Inside Attack', moves: ['JAB', 'CROSS', 'LEAD HOOK', 'ROLL', 'CROSS'] },
+            { name: 'Double Jab Power Cross', moves: ['JAB', 'JAB', 'CROSS', 'LEAD HOOK'] },
+            { name: 'Uppercut Finisher Drill', moves: ['JAB', 'CROSS', 'SLIP LEFT', 'LEAD UPPER', 'REAR HOOK'] },
+            { name: '10-Move Pro Defense Sequence', moves: ['JAB', 'CROSS', 'SLIP RIGHT', 'CROSS', 'LEAD HOOK', 'DUCK', 'REAR UPPER', 'LEAD HOOK', 'SLIP LEFT', 'CROSS'] }
+        ];
+
+        // APP STATE
+        let currentMode = '10move'; // '10move' or 'preset'
+        let intervalTime = 0; // 0 = off, else seconds
+        let timerId = null;
+        let progressTimerId = null;
+        let countdownValue = 0;
+        let ttsEnabled = false;
+        let beepEnabled = false;
+        let currentCombo = [];
+        let customCombos = [];
+
+        // Audio Synth Context for Beeps
+        let audioCtx = null;
+
+        window.onload = function() {
+            lucide.createIcons();
+            loadCustomCombosFromStorage();
+            populatePresetDropdown();
+            generateNewCombo();
+        };
+
+        function setMode(mode) {
+            currentMode = mode;
+            const btn10 = document.getElementById('tab10Move');
+            const btnPreset = document.getElementById('tabPreset');
+            const presetContainer = document.getElementById('presetSelectorContainer');
+
+            if (mode === '10move') {
+                btn10.className = "py-3 px-4 rounded-xl font-bold text-sm sm:text-base tracking-wide border transition flex items-center justify-center gap-2 border-yellow-400 bg-yellow-400/10 text-yellow-400";
+                btnPreset.className = "py-3 px-4 rounded-xl font-bold text-sm sm:text-base tracking-wide border transition flex items-center justify-center gap-2 border-zinc-800 bg-zinc-900 text-zinc-400 hover:text-zinc-200";
+                presetContainer.classList.add('hidden');
+                document.getElementById('comboTitle').innerText = "10-MOVE REFLEX DRILL";
+            } else {
+                btnPreset.className = "py-3 px-4 rounded-xl font-bold text-sm sm:text-base tracking-wide border transition flex items-center justify-center gap-2 border-yellow-400 bg-yellow-400/10 text-yellow-400";
+                btn10.className = "py-3 px-4 rounded-xl font-bold text-sm sm:text-base tracking-wide border transition flex items-center justify-center gap-2 border-zinc-800 bg-zinc-900 text-zinc-400 hover:text-zinc-200";
+                presetContainer.classList.remove('hidden');
+                document.getElementById('comboTitle').innerText = "PRESET / CUSTOM DRILL";
+            }
+            generateNewCombo();
+        }
+
+        function generateNewCombo() {
+            const container = document.getElementById('comboContainer');
+            container.classList.remove('combo-flash');
+            void container.offsetWidth; // trigger reflow
+            container.classList.add('combo-flash');
+
+            if (currentMode === '10move') {
+                currentCombo = [];
+                for (let i = 0; i < 10; i++) {
+                    const randomMove = MOVES_DB[Math.floor(Math.random() * MOVES_DB.length)];
+                    currentCombo.push(randomMove);
+                }
+            } else {
+                loadSelectedPreset();
+                return;
+            }
+
+            renderComboCards(currentCombo);
+            triggerAudioCallouts(currentCombo);
+            resetAutoIntervalTimer();
+        }
+
+        function renderComboCards(movesArray) {
+            const grid = document.getElementById('moveGrid');
+            grid.innerHTML = '';
+
+            document.getElementById('comboLengthBadge').innerText = `${movesArray.length} MOVES`;
+
+            movesArray.forEach((moveObj, index) => {
+                const stepNum = String(index + 1).padStart(2, '0');
+                const card = document.createElement('div');
+                
+                card.className = `flex flex-col justify-between p-3 sm:p-4 rounded-2xl border-2 ${moveObj.badgeBg} ${moveObj.badgeBorder} shadow-lg transition transform hover:scale-105`;
+                
+                card.innerHTML = `
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-xs font-mono font-black px-2 py-0.5 rounded-md bg-zinc-950/80 text-yellow-400 border border-zinc-800">
+                            #${stepNum}
+                        </span>
+                        <span class="text-[10px] font-bold tracking-widest uppercase opacity-75 ${moveObj.textColor}">
+                            ${moveObj.type}
+                        </span>
+                    </div>
+                    <div class="text-xl sm:text-2xl font-black tracking-tight leading-none ${moveObj.textColor} my-1">
+                        ${moveObj.name}
+                    </div>
+                    <div class="text-right mt-1">
+                        <span class="text-xs font-black text-zinc-400 bg-zinc-900/60 px-1.5 py-0.5 rounded">
+                            [${moveObj.abbr}]
+                        </span>
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        function toggleTTS() {
+            ttsEnabled = !ttsEnabled;
+            const btn = document.getElementById('ttsToggle');
+            const icon = document.getElementById('ttsIcon');
+            if (ttsEnabled) {
+                btn.className = "p-3 bg-yellow-400 text-zinc-950 rounded-xl font-bold transition flex items-center justify-center min-w-[48px] min-h-[48px]";
+                icon.setAttribute('data-lucide', 'volume-2');
+                speakText("Voice callouts enabled");
+            } else {
+                btn.className = "p-3 bg-zinc-900 border border-zinc-700 rounded-xl text-zinc-400 hover:text-yellow-400 transition flex items-center justify-center min-w-[48px] min-h-[48px]";
+                icon.setAttribute('data-lucide', 'volume-x');
+                window.speechSynthesis.cancel();
+            }
+            lucide.createIcons();
+        }
+
+        function toggleBeep() {
+            beepEnabled = !beepEnabled;
+            const btn = document.getElementById('beepToggle');
+            const icon = document.getElementById('beepIcon');
+            if (beepEnabled) {
+                btn.className = "p-3 bg-yellow-400 text-zinc-950 rounded-xl font-bold transition flex items-center justify-center min-w-[48px] min-h-[48px]";
+                icon.setAttribute('data-lucide', 'bell');
+                playBeep(800, 0.15);
+            } else {
+                btn.className = "p-3 bg-zinc-900 border border-zinc-700 rounded-xl text-zinc-400 hover:text-yellow-400 transition flex items-center justify-center min-w-[48px] min-h-[48px]";
+                icon.setAttribute('data-lucide', 'bell-off');
+            }
+            lucide.createIcons();
+        }
+
+        function playBeep(freq = 600, duration = 0.1) {
+            if (!beepEnabled) return;
+            try {
+                if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                if (audioCtx.state === 'suspended') audioCtx.resume();
+                
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'sine';
+                osc.frequency.value = freq;
+                gain.gain.value = 0.15;
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start();
+                osc.stop(audioCtx.currentTime + duration);
+            } catch (e) {
+                console.log("Audio not allowed yet");
+            }
+        }
+
+        function speakText(text) {
+            if (!ttsEnabled || !('speechSynthesis' in window)) return;
+            window.speechSynthesis.cancel(); // Clear previous speech queue
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.rate = 1.1; // Slightly faster for workout callouts
+            utterance.pitch = 1.0;
+            window.speechSynthesis.speak(utterance);
+        }
+
+        function triggerAudioCallouts(movesArray) {
+            if (beepEnabled) playBeep(900, 0.15);
+            if (ttsEnabled) {
+                const moveNames = movesArray.map(m => m.name).join(', ');
+                speakText(moveNames);
+            }
+        }
+
+        function setIntervalTime(seconds) {
+            intervalTime = seconds;
+            
+            // Update button styling
+            const buttons = document.querySelectorAll('.interval-btn');
+            buttons.forEach(btn => {
+                if (parseInt(btn.getAttribute('data-time')) === seconds) {
+                    btn.className = "interval-btn px-2.5 py-1 rounded-lg text-xs font-bold border border-yellow-400 bg-yellow-400 text-zinc-950";
+                } else {
+                    btn.className = "interval-btn px-2.5 py-1 rounded-lg text-xs font-bold border border-zinc-800 bg-zinc-950 text-zinc-400";
+                }
+            });
+
+            resetAutoIntervalTimer();
+        }
+
+        function resetAutoIntervalTimer() {
+            clearInterval(timerId);
+            clearInterval(progressTimerId);
+
+            const progressBar = document.getElementById('progressBar');
+            if (intervalTime <= 0) {
+                progressBar.style.width = '0%';
+                return;
+            }
+
+            let elapsed = 0;
+            const totalMs = intervalTime * 1000;
+            const stepMs = 100;
+
+            progressBar.style.width = '100%';
+
+            progressTimerId = setInterval(() => {
+                elapsed += stepMs;
+                const remainingPercent = Math.max(0, 100 - (elapsed / totalMs * 100));
+                progressBar.style.width = `${remainingPercent}%`;
+
+                // Beep warning at last 3 seconds
+                const timeLeftSec = Math.ceil((totalMs - elapsed) / 1000);
+                if (elapsed % 1000 === 0 && timeLeftSec <= 3 && timeLeftSec > 0) {
+                    playBeep(400, 0.05);
+                }
+            }, stepMs);
+
+            timerId = setInterval(() => {
+                generateNewCombo();
+            }, totalMs);
+        }
+
+        function populatePresetDropdown() {
+            const select = document.getElementById('presetSelect');
+            select.innerHTML = '';
+
+            // Standard Presets Group
+            const optGroupStandard = document.createElement('optgroup');
+            optGroupStandard.label = "CLASSIC PRESETS";
+            DEFAULT_PRESETS.forEach((p, idx) => {
+                const opt = document.createElement('option');
+                opt.value = `std_${idx}`;
+                opt.innerText = p.name;
+                optGroupStandard.appendChild(opt);
+            });
+            select.appendChild(optGroupStandard);
+
+            // Custom Presets Group
+            if (customCombos.length > 0) {
+                const optGroupCustom = document.createElement('optgroup');
+                optGroupCustom.label = "YOUR CUSTOM COMBOS";
+                customCombos.forEach((c, idx) => {
+                    const opt = document.createElement('option');
+                    opt.value = `cust_${idx}`;
+                    opt.innerText = `⭐ ${c.name}`;
+                    optGroupCustom.appendChild(opt);
+                });
+                select.appendChild(optGroupCustom);
+            }
+        }
+
+        function loadSelectedPreset() {
+            const select = document.getElementById('presetSelect');
+            const val = select.value || 'std_0';
+
+            let selectedObj = null;
+            if (val.startsWith('std_')) {
+                const idx = parseInt(val.replace('std_', ''));
+                selectedObj = DEFAULT_PRESETS[idx];
+            } else if (val.startsWith('cust_')) {
+                const idx = parseInt(val.replace('cust_', ''));
+                selectedObj = customCombos[idx];
+            }
+
+            if (!selectedObj) return;
+
+            // Map string move names back to objects
+            currentCombo = selectedObj.moves.map(moveName => {
+                const cleanName = moveName.trim().toUpperCase();
+                const matched = MOVES_DB.find(m => m.name === cleanName || m.id === cleanName.toLowerCase());
+                if (matched) return matched;
+                // Fallback for custom unique strings
+                return {
+                    id: 'custom',
+                    name: cleanName,
+                    abbr: 'CUSTOM',
+                    type: 'custom',
+                    badgeBg: 'bg-yellow-500/20',
+                    badgeBorder: 'border-yellow-500',
+                    textColor: 'text-yellow-300'
+                };
+            });
+
+            renderComboCards(currentCombo);
+            triggerAudioCallouts(currentCombo);
+            resetAutoIntervalTimer();
+        }
+
+        function openCustomModal() {
+            document.getElementById('customModal').classList.remove('hidden');
+            document.getElementById('customModal').classList.add('flex');
+            renderCustomsList();
+        }
+
+        function closeCustomModal() {
+            document.getElementById('customModal').classList.add('hidden');
+            document.getElementById('customModal').classList.remove('flex');
+        }
+
+        function saveCustomCombo() {
+            const titleInput = document.getElementById('customTitleInput').value.trim();
+            const movesInput = document.getElementById('customMovesInput').value.trim();
+
+            if (!titleInput || !movesInput) {
+                return;
+            }
+
+            const movesList = movesInput.split(',').map(s => s.trim());
+            const newCombo = { name: titleInput, moves: movesList };
+
+            customCombos.push(newCombo);
+            localStorage.setItem('reflex_custom_combos', JSON.stringify(customCombos));
+
+            document.getElementById('customTitleInput').value = '';
+            document.getElementById('customMovesInput').value = '';
+
+            populatePresetDropdown();
+            renderCustomsList();
+        }
+
+        function deleteCustomCombo(index) {
+            customCombos.splice(index, 1);
+            localStorage.setItem('reflex_custom_combos', JSON.stringify(customCombos));
+            populatePresetDropdown();
+            renderCustomsList();
+        }
+
+        function renderCustomsList() {
+            const list = document.getElementById('savedCustomsList');
+            list.innerHTML = '';
+
+            if (customCombos.length === 0) {
+                list.innerHTML = `<p class="text-xs text-zinc-500">No custom combos saved yet.</p>`;
+                return;
+            }
+
+            customCombos.forEach((c, idx) => {
+                const item = document.createElement('div');
+                item.className = "flex items-center justify-between bg-zinc-950 p-2.5 rounded-xl border border-zinc-800 text-xs";
+                item.innerHTML = `
+                    <div>
+                        <span class="font-bold text-yellow-400 block">${c.name}</span>
+                        <span class="text-zinc-500">${c.moves.join(' • ')}</span>
+                    </div>
+                    <button onclick="deleteCustomCombo(${idx})" class="text-red-400 hover:text-red-300 p-1">
+                        <i data-lucide="trash-2" class="w-4 h-4"></i>
+                    </button>
+                `;
+                list.appendChild(item);
+            });
+            lucide.createIcons();
+        }
+
+        function loadCustomCombosFromStorage() {
+            const saved = localStorage.getItem('reflex_custom_combos');
+            if (saved) {
+                try {
+                    customCombos = JSON.parse(saved);
+                } catch (e) {
+                    customCombos = [];
+                }
+            }
+        }
+    </script>
+</body>
+</html>
+```
